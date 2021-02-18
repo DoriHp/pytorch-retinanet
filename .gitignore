@@ -103,3 +103,5 @@ ENV/
 *.pt
 *.csv
 *.pth
+logs/
+snapshots/

@@ -20,6 +20,8 @@ from retinanet import csv_eval
 from torch.utils.tensorboard import SummaryWriter
 from statistics import mean 
 
+from utils import *
+
 assert torch.__version__.split('.')[0] == '1'
 
 print('CUDA available: {}'.format(torch.cuda.is_available()))
@@ -42,6 +44,7 @@ def main(args=None):
 	parser.add_argument('--multi-gpus', help='Allow multi gpus for training task', action='store_true')
 	parser.add_argument('--snapshots', help='Location to save training snapshots', type=str, default="snapshots")
 
+	parser.add_argument('--log-dir', help='Location to save training logs', type=str, default="logs")
 	parser = parser.parse_args(args)
 
 	# Create the data loaders
@@ -106,7 +109,7 @@ def main(args=None):
 				print("Using multi-gpus for training process")
 				retinanet = torch.nn.DataParallel(retinanet.cuda(), device_ids=[0,1])
 			else:
-				retinanet = retinanet.cuda()
+				retinanet = torch.nn.DataParallel(retinanet.cuda())
 	else:
 		retinanet = torch.nn.DataParallel(retinanet)
 
@@ -124,7 +127,7 @@ def main(args=None):
 	print('Num training images: {}'.format(len(dataset_train)))
 
 	# Tensorboard writer
-	# writer = SummaryWriter("logs")
+	writer = SummaryWriter("logs")
 
 	# Save snapshots dir
 	if not os.path.exists(parser.snapshots):
@@ -136,6 +139,8 @@ def main(args=None):
 		retinanet.module.freeze_bn()
 
 		epoch_loss = []
+		epoch_csf_loss = []
+		epoch_reg_loss = []
 
 		for iter_num, data in enumerate(dataloader_train):
 			try:
@@ -151,6 +156,8 @@ def main(args=None):
 				regression_loss = regression_loss.mean()
 
 				loss = classification_loss + regression_loss
+				epoch_csf_loss.append(float(classification_loss))
+				epoch_reg_loss.append(float(regression_loss))
 
 				if bool(loss == 0):
 					continue
@@ -187,13 +194,22 @@ def main(args=None):
 
 			print('\nEvaluating dataset')
 
-			mAP = csv_eval.evaluate(dataset_val, retinanet)
+			APs = csv_eval.evaluate(dataset_val, retinanet)
+			mAP = mean(APs[ap][0] for ap in APs.keys())
+			print("mAP: %.3f" %mAP)
+			writer.add_scalar("validate/mAP", mAP, epoch_num)
 
-			# print("mAP: %.3f" %mAP)
-			print("mAP: ", mean(mAP[ap][0] for ap in mAP.keys()))
-			# writer.add_scalar("mAP/valid", mAP, epoch_num)
+		_epoch_loss = np.mean(epoch_loss)
+		_epoch_csf_loss = np.mean(epoch_reg_loss)
+		_epoch_reg_loss = np.mean(epoch_reg_loss)
 
-		scheduler.step(np.mean(epoch_loss))
+		scheduler.step(_epoch_loss)
+
+		lr = get_lr(optimizer)
+		writer.add_scalar("train/classification-loss", _epoch_csf_loss, epoch_num)
+		writer.add_scalar("train/regression-loss", _epoch_reg_loss, epoch_num)
+		writer.add_scalar("train/loss", _epoch_loss, epoch_num)
+		writer.add_scalar("train/learning-rate", lr, epoch_num)
 
 		torch.save(retinanet.module, os.path.join(parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num)))
 
@@ -203,7 +219,7 @@ def main(args=None):
 
 	torch.save(retinanet, 'model_final.pt')
 
-	# writer.flush()
+	writer.flush()
 
 if __name__ == '__main__':
 	main()
