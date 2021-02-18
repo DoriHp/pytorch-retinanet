@@ -11,6 +11,7 @@ from torchvision import transforms
 from retinanet import model
 from retinanet.dataloader import CocoDataset, CSVDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, \
 	Normalizer
+from retinanet.augmentation import get_aug_map
 from torch.utils.data import DataLoader
 
 from retinanet import coco_eval
@@ -41,11 +42,31 @@ def main(args=None):
 	parser.add_argument('--batch-size', help='Number of input images per step', type=int, default=1)
 	parser.add_argument('--num-workers', help='Number of worker used in dataloader', type=int, default=1)
 
-	parser.add_argument('--multi-gpus', help='Allow multi gpus for training task', action='store_true')
+	parser.add_argument('--multi-gpus', help='Allow to use multi gpus for training task', action='store_true')
 	parser.add_argument('--snapshots', help='Location to save training snapshots', type=str, default="snapshots")
 
 	parser.add_argument('--log-dir', help='Location to save training logs', type=str, default="logs")
+	parser.add_argument('--expr-augs', help='Allow to use use experiment augmentation methods', action='store_true')
+	parser.add_argument('--aug-methods', help='(Experiment) Augmentation methods to use, separate by comma symbol', type=str, default="rotate,hflip,brightness,contrast")
+	parser.add_argument('--aug-prob', help='Probability of applying (experiment) augmentation in range [0.,1.]', type=float, default=0.5)
+
 	parser = parser.parse_args(args)
+
+	train_transforms = [Normalizer()]
+
+	# Define transform methods
+	if parser.expr_augs:
+		aug_map = get_aug_map(p=parser.aug_prob)
+		aug_methods = parser.aug_methods.split(",")
+		for aug in aug_methods:
+			if aug in aug_map.keys():
+				train_transforms.append(aug_map[aug])
+			else:
+				print(f"{aug} is not available.")
+	else:
+		train_transforms.append(Augmenter())
+
+	train_transforms.append(Resizer())
 
 	# Create the data loaders
 	if parser.dataset == 'coco':
@@ -54,7 +75,7 @@ def main(args=None):
 			raise ValueError('Must provide --coco_path when training on COCO,')
 
 		dataset_train = CocoDataset(parser.coco_path, set_name='train2017',
-									transform=transforms.Compose([Normalizer(), Augmenter(), Resizer()]))
+									transform=transforms.Compose(train_transforms))
 		dataset_val = CocoDataset(parser.coco_path, set_name='val2017',
 								  transform=transforms.Compose([Normalizer(), Resizer()]))
 
@@ -67,7 +88,7 @@ def main(args=None):
 			raise ValueError('Must provide --csv_classes when training on COCO,')
 
 		dataset_train = CSVDataset(train_file=parser.csv_train, class_list=parser.csv_classes,
-								   transform=transforms.Compose([Normalizer(), Augmenter(), Resizer()]))
+								   transform=transforms.Compose(train_transforms))
 
 		if parser.csv_val is None:
 			dataset_val = None
