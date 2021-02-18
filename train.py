@@ -148,7 +148,7 @@ def main(args=None):
 	print('Num training images: {}'.format(len(dataset_train)))
 
 	# Tensorboard writer
-	writer = SummaryWriter("logs")
+	writer = SummaryWriter(parser.log_dir)
 
 	# Save snapshots dir
 	if not os.path.exists(parser.snapshots):
