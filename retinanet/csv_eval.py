@@ -233,12 +233,14 @@ def evaluate(
         average_precisions[label] = average_precision, num_annotations
 
 
-    print('\nmAP:')
+    print('\nAPs:')
     for label in range(generator.num_classes()):
         label_name = generator.label_to_name(label)
         print('{}: {}'.format(label_name, average_precisions[label][0]))
-        print("Precision: ",precision[-1])
-        print("Recall: ",recall[-1])
+        # print("Precision: ",precision[-1])
+        # print("Recall: ",recall[-1])
+        # print("Precision: ", precision)
+        # print("Recall: ", recall)
         
         if save_path!=None:
             plt.plot(recall,precision)
@@ -252,8 +254,6 @@ def evaluate(
 
             # function to show the plot
             plt.savefig(save_path+'/'+label_name+'_precision_recall.jpg')
-
-
 
     return average_precisions
 

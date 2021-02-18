@@ -1,3 +1,4 @@
+import os
 import argparse
 import collections
 
@@ -17,6 +18,7 @@ from retinanet import csv_eval
 
 # Tensorboard (experiment)
 from torch.utils.tensorboard import SummaryWriter
+from statistics import mean 
 
 assert torch.__version__.split('.')[0] == '1'
 
@@ -38,6 +40,7 @@ def main(args=None):
 	parser.add_argument('--num-workers', help='Number of worker used in dataloader', type=int, default=1)
 
 	parser.add_argument('--multi-gpus', help='Allow multi gpus for training task', action='store_true')
+	parser.add_argument('--snapshots', help='Location to save training snapshots', type=str, default="snapshots")
 
 	parser = parser.parse_args(args)
 
@@ -120,7 +123,12 @@ def main(args=None):
 
 	print('Num training images: {}'.format(len(dataset_train)))
 
+	# Tensorboard writer
 	# writer = SummaryWriter("logs")
+
+	# Save snapshots dir
+	if not os.path.exists(parser.snapshots):
+		os.makedirs(parser.snapshots)
 
 	for epoch_num in range(parser.epochs):
 
@@ -159,7 +167,7 @@ def main(args=None):
 
 				print(
 					'\rEpoch: {}/{} | Iteration: {}/{} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
-						epoch_num, parser.epochs, iter_num, len(dataloader_train), float(classification_loss), float(regression_loss), np.mean(loss_hist)), end='')
+						(epoch_num + 1), parser.epochs, (iter_num + 1), len(dataloader_train), float(classification_loss), float(regression_loss), np.mean(loss_hist)), end='')
 
 				del classification_loss
 				del regression_loss
@@ -181,12 +189,13 @@ def main(args=None):
 
 			mAP = csv_eval.evaluate(dataset_val, retinanet)
 
-			print("mAP: %.3f" %mAP)
+			# print("mAP: %.3f" %mAP)
+			print("mAP: ", mean(mAP[ap][0] for ap in mAP.keys()))
 			# writer.add_scalar("mAP/valid", mAP, epoch_num)
 
 		scheduler.step(np.mean(epoch_loss))
 
-		torch.save(retinanet.module, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num))
+		torch.save(retinanet.module, os.path.join(parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num)))
 
 		print('\n')
 
