@@ -172,7 +172,9 @@ def main(args=None):
 		os.makedirs(parser.snapshots)
 
 	best_mAP = 0
-	for epoch_num in range(parser.epochs):
+	start_epoch = 0 if not parser.resume else start_epoch 
+
+	for epoch_num in range(start_epoch, parser.epochs):
 
 		retinanet.train()
 		retinanet.module.freeze_bn()
@@ -266,7 +268,6 @@ def main(args=None):
 			best_mAP = mAP 
 			is_best = True  
 
-		mAPs.append(mAP)
 		save_ckpt(checkpoint, is_best, parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num + 1))
 
 		print('\n')

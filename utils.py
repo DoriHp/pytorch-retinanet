@@ -2,7 +2,7 @@
 # @Author: devBao
 # @Date:   2021-02-18 14:42:23
 # @Last Modified by:   devBao
-# @Last Modified time: 2021-02-19 11:06:19
+# @Last Modified time: 2021-02-19 11:11:25
 
 import os
 import torch
@@ -36,4 +36,6 @@ def save_ckpt(state, is_best, checkpoint_dir, name):
 	torch.save(state, f_path)
 	if is_best:
 		best_fpath = os.path.join(checkpoint_dir, 'best_model.pt')
-		shutil.copyfile(f_path, best_fpath)
+		# shutil.copyfile(f_path, best_fpath)
+		# With the best weights, save additional weights-only file
+		torch.save(state['state_dict'], best_fpath)
