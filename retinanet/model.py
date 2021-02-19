@@ -177,10 +177,11 @@ class ResNet(nn.Module):
 
         self.fpn = PyramidFeatures(fpn_sizes[0], fpn_sizes[1], fpn_sizes[2])
 
-        self.regressionModel = RegressionModel(256)
-        self.classificationModel = ClassificationModel(256, num_classes=num_classes)
-
         self.anchors = Anchors(ratios, scales)
+
+        num_anchors = len(self.anchors.ratios) * len(self.anchors.scales)
+        self.regressionModel = RegressionModel(256, num_anchors=num_anchors)
+        self.classificationModel = ClassificationModel(256, num_classes=num_classes, num_anchors=num_anchors)
 
         self.regressBoxes = BBoxTransform()
 

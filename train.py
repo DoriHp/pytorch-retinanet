@@ -112,7 +112,7 @@ def main(args=None):
 		dataloader_val = DataLoader(dataset_val, num_workers=parser.num_workers, collate_fn=collater, batch_sampler=sampler_val)
 
 	if parser.depth == 18:
-		retinanet = model.resnet18(num_classes=dataset_train.num_classes(), pretrained=True)
+		retinanet = model.resnet18(num_classes=dataset_train.num_classes(), pretrained=True, ratios=[0.328, 0.624, 1.0, 1.602, 3.046], scales=[0.53, 1.213, 1.684])
 	elif parser.depth == 34:
 		retinanet = model.resnet34(num_classes=dataset_train.num_classes(), pretrained=True)
 	elif parser.depth == 50:
