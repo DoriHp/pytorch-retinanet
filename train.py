@@ -40,6 +40,7 @@ def main(args=None):
 	parser.add_argument('--csv_val', help='Path to file containing validation annotations (optional, see readme)')
 
 	parser.add_argument('--depth', help='Resnet depth, must be one of 18, 34, 50, 101, 152', type=int, default=50)
+	parser.add_argument('--config', help='Config file path that contains scale and ratio values', type=str)
 	parser.add_argument('--epochs', help='Number of epochs', type=int, default=100)
 	parser.add_argument('--batch-size', help='Number of input images per step', type=int, default=1)
 	parser.add_argument('--num-workers', help='Number of worker used in dataloader', type=int, default=1)
@@ -113,16 +114,22 @@ def main(args=None):
 		sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=parser.batch_size, drop_last=False)
 		dataloader_val = DataLoader(dataset_val, num_workers=parser.num_workers, collate_fn=collater, batch_sampler=sampler_val)
 
+	config = dict({"scales": None,
+					"ratios": None})
+	
+	if parser.config:
+		config = load_config(parser.config, config)
+
 	if parser.depth == 18:
-		retinanet = model.resnet18(num_classes=dataset_train.num_classes(), pretrained=True, ratios=[0.328, 0.624, 1.0, 1.602, 3.046], scales=[0.53, 1.213, 1.684])
+		retinanet = model.resnet18(num_classes=dataset_train.num_classes(), pretrained=True, ratios=config["ratios"], scales=config["scales"])
 	elif parser.depth == 34:
-		retinanet = model.resnet34(num_classes=dataset_train.num_classes(), pretrained=True)
+		retinanet = model.resnet34(num_classes=dataset_train.num_classes(), pretrained=True, ratios=config["ratios"], scales=config["scales"])
 	elif parser.depth == 50:
-		retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True, ratios=[0.328, 0.624, 1.0, 1.602, 3.046], scales=[0.53, 1.213, 1.684])
+		retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True, ratios=config["ratios"], scales=config["scales"])
 	elif parser.depth == 101:
-		retinanet = model.resnet101(num_classes=dataset_train.num_classes(), pretrained=True)
+		retinanet = model.resnet101(num_classes=dataset_train.num_classes(), pretrained=True, ratios=config["ratios"], scales=config["scales"])
 	elif parser.depth == 152:
-		retinanet = model.resnet152(num_classes=dataset_train.num_classes(), pretrained=True)
+		retinanet = model.resnet152(num_classes=dataset_train.num_classes(), pretrained=True, ratios=config["ratios"], scales=config["scales"])
 	else:
 		raise ValueError('Unsupported model depth, must be one of 18, 34, 50, 101, 152')
 
