@@ -22,7 +22,7 @@ from typing import List,Tuple,Dict,Optional,Union
 from retinanet.bbox_utils import *
 import torchvision.transforms.functional as TF
 
-#Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py    
+# Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py    
 class RandomHorizontalFlip(object):
 
     """Randomly horizontally flips the Image with the probability *p*
@@ -63,7 +63,7 @@ class RandomHorizontalFlip(object):
         sample = {"img": img.copy(), "annot": bboxes.copy()}
         return sample
         
-#Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py 
+# Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py 
 class RandomRotate(object):
     """Randomly rotates an image    
     
@@ -144,7 +144,7 @@ class RandomRotate(object):
         return sample
     
     
-#Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py 
+# Taken from https://github.com/Paperspace/DataAugmentationForObjectDetection/blob/master/data_aug/data_aug.py 
 class RandomShear(object):
     """Randomly shears an image in horizontal direction   
     

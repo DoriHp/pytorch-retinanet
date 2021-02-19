@@ -2,46 +2,38 @@
 # @Author: devBao
 # @Date:   2021-02-18 14:42:23
 # @Last Modified by:   devBao
-# @Last Modified time: 2021-02-18 16:13:00
+# @Last Modified time: 2021-02-19 11:06:19
 
+import os
+import torch
 import torch.nn as nn
+import shutil
+from collections import OrderedDict
 
 def get_lr(optimizer):
 	for param_group in optimizer.param_groups:
 		return param_group['lr']
 
-def load_checkpoint(model: nn.Module, weights: str, depth: int) -> nn.Module:
-    """Loads already trained weights to initialized model.
-    Args:
-        model (nn.Module): Empty retinanet model
-        weights (str): Path to checkpoint
-        depth (int): ResNet depth
-    Raises:
-        KeyError: If current model and checkpoint layers are not matching.
-    Returns:
-        nn.Module : retinanet model.
-    """         
-    if weights.endswith(".pt"):  # pytorch format
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        ckpt = torch.load(weights, map_location=device)  # load checkpoint
+def load_ckpt(checkpoint_fpath, model, optimizer):
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	checkpoint = torch.load(checkpoint_fpath)
 
-        # load model
-        try:
-            ckpt = {
-                k: v
-                for k, v in ckpt.state_dict().items()
-                if model.state_dict()[k].shape == v.shape
-            } 
-            model.load_state_dict(ckpt, strict=True)
-            print("Resuming training from checkpoint in {}".format(weights))  
-        except KeyError as e:
-            s = (
-                "%s is not compatible with depth %s. This may be due to model architecture differences or %s may be out of date. "
-                "Please delete or update %s and try again, or use --weights '' to train from scratch."
-                % (weights, str(depth), weights, weights)
-            )
-            raise KeyError(s) from e
-        del ckpt
-        return model
-    else:
-        return model
+	# Load state_dict that save with nn.DataParallel
+	new_state_dict = OrderedDict()
+	for k, v in checkpoint['state_dict'].items():
+		name = k[7:]
+		new_state_dict[name] = v
+
+	model.load_state_dict(new_state_dict)	
+	model.to(device)
+
+	optimizer.load_state_dict(checkpoint['optimizer'])
+
+	return model, optimizer, checkpoint['epoch']
+
+def save_ckpt(state, is_best, checkpoint_dir, name):
+	f_path = os.path.join(checkpoint_dir, name)
+	torch.save(state, f_path)
+	if is_best:
+		best_fpath = os.path.join(checkpoint_dir, 'best_model.pt')
+		shutil.copyfile(f_path, best_fpath)

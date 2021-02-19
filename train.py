@@ -42,6 +42,10 @@ def main(args=None):
 	parser.add_argument('--batch-size', help='Number of input images per step', type=int, default=1)
 	parser.add_argument('--num-workers', help='Number of worker used in dataloader', type=int, default=1)
 
+	# For resuming training from saved checkpoint
+	parser.add_argument('--resume', help='Whether to resume training from checkpoint', action='store_true')
+	parser.add_argument('--saved-ckpt', help='Resume training from this checkpoint', type=str)
+
 	parser.add_argument('--multi-gpus', help='Allow to use multi gpus for training task', action='store_true')
 	parser.add_argument('--snapshots', help='Location to save training snapshots', type=str, default="snapshots")
 
@@ -107,7 +111,6 @@ def main(args=None):
 		sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=parser.batch_size, drop_last=False)
 		dataloader_val = DataLoader(dataset_val, num_workers=parser.num_workers, collate_fn=collater, batch_sampler=sampler_val)
 
-	# Create the model
 	if parser.depth == 18:
 		retinanet = model.resnet18(num_classes=dataset_train.num_classes(), pretrained=True)
 	elif parser.depth == 34:
@@ -120,6 +123,22 @@ def main(args=None):
 		retinanet = model.resnet152(num_classes=dataset_train.num_classes(), pretrained=True)
 	else:
 		raise ValueError('Unsupported model depth, must be one of 18, 34, 50, 101, 152')
+
+	optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
+	if parser.resume:
+		if not parser.saved_ckpt:
+			print("No saved checkpoint provided for resuming training. Exiting now...")
+			return 
+		if not os.path.exists(parser.saved_ckpt):
+			print("Invalid saved checkpoint path. Exiting now...")
+			return
+
+		# Restore last state
+		optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
+		retinanet, optimizer, start_epoch = load_ckpt(parser.saved_ckpt, retinanet, optimizer)
+		if parser.epochs <= start_epoch:
+			print("Number of epochs must be higher than number of trained epochs of saved checkpoint.")
+			return
 
 	use_gpu = True
 
@@ -135,8 +154,6 @@ def main(args=None):
 		retinanet = torch.nn.DataParallel(retinanet)
 
 	retinanet.training = True
-
-	optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
 
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
 
@@ -154,6 +171,7 @@ def main(args=None):
 	if not os.path.exists(parser.snapshots):
 		os.makedirs(parser.snapshots)
 
+	best_mAP = 0
 	for epoch_num in range(parser.epochs):
 
 		retinanet.train()
@@ -216,8 +234,8 @@ def main(args=None):
 			print('\nEvaluating dataset')
 
 			APs = csv_eval.evaluate(dataset_val, retinanet)
-			mAP = mean(APs[ap][0] for ap in APs.keys())
-			print("mAP: %.3f" %mAP)
+			mAP = round(mean(APs[ap][0] for ap in APs.keys()), 5)
+			print("mAP: %f" %mAP)
 			writer.add_scalar("validate/mAP", mAP, epoch_num)
 
 		_epoch_loss = np.mean(epoch_loss)
@@ -232,7 +250,24 @@ def main(args=None):
 		writer.add_scalar("train/loss", _epoch_loss, epoch_num)
 		writer.add_scalar("train/learning-rate", lr, epoch_num)
 
-		torch.save(retinanet.module, os.path.join(parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num)))
+		# Save model file, optimizer and epoch number
+
+		checkpoint = {
+		    'epoch': epoch_num + 1,
+		    'state_dict': retinanet.state_dict(),
+		    'optimizer': optimizer.state_dict()
+		}
+
+		# torch.save(retinanet.module, os.path.join(parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num)))
+		
+		# Check whether this epoch's model achieves highest mAP value
+		is_best = False
+		if best_mAP < mAP:
+			best_mAP = mAP 
+			is_best = True  
+
+		mAPs.append(mAP)
+		save_ckpt(checkpoint, is_best, parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num + 1))
 
 		print('\n')
 
