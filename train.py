@@ -157,7 +157,7 @@ def main(args=None):
 
 	retinanet.training = True
 
-	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
+	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1, verbose=True)
 
 	loss_hist = collections.deque(maxlen=500)
 
@@ -227,11 +227,17 @@ def main(args=None):
 
 		# writer.add_scalar("Loss/train", loss, epoch_num)
 
+		_epoch_loss = np.mean(epoch_loss)
+		_epoch_csf_loss = np.mean(epoch_reg_loss)
+		_epoch_reg_loss = np.mean(epoch_reg_loss)
+
 		if parser.dataset == 'coco':
 
 			print('Evaluating dataset')
 
 			coco_eval.evaluate_coco(dataset_val, retinanet)
+
+			scheduler.step(_epoch_loss)
 
 		elif parser.dataset == 'csv' and parser.csv_val is not None:
 
@@ -241,12 +247,9 @@ def main(args=None):
 			mAP = round(mean(APs[ap][0] for ap in APs.keys()), 5)
 			print("mAP: %f" %mAP)
 			writer.add_scalar("validate/mAP", mAP, epoch_num)
-
-		_epoch_loss = np.mean(epoch_loss)
-		_epoch_csf_loss = np.mean(epoch_reg_loss)
-		_epoch_reg_loss = np.mean(epoch_reg_loss)
-
-		scheduler.step(_epoch_loss)
+			
+			# Handle lr_scheduler wuth mAP value
+			scheduler.step(mAP)			
 
 		lr = get_lr(optimizer)
 		writer.add_scalar("train/classification-loss", _epoch_csf_loss, epoch_num)
