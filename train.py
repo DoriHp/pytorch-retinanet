@@ -116,7 +116,7 @@ def main(args=None):
 	elif parser.depth == 34:
 		retinanet = model.resnet34(num_classes=dataset_train.num_classes(), pretrained=True)
 	elif parser.depth == 50:
-		retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True)
+		retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True, ratios=[0.328, 0.624, 1.0, 1.602, 3.046], scales=[0.53, 1.213, 1.684])
 	elif parser.depth == 101:
 		retinanet = model.resnet101(num_classes=dataset_train.num_classes(), pretrained=True)
 	elif parser.depth == 152:
@@ -125,6 +125,7 @@ def main(args=None):
 		raise ValueError('Unsupported model depth, must be one of 18, 34, 50, 101, 152')
 
 	optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
+
 	if parser.resume:
 		if not parser.saved_ckpt:
 			print("No saved checkpoint provided for resuming training. Exiting now...")
@@ -134,7 +135,6 @@ def main(args=None):
 			return
 
 		# Restore last state
-		optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
 		retinanet, optimizer, start_epoch = load_ckpt(parser.saved_ckpt, retinanet, optimizer)
 		if parser.epochs <= start_epoch:
 			print("Number of epochs must be higher than number of trained epochs of saved checkpoint.")

@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class Anchors(nn.Module):
-    def __init__(self, pyramid_levels=None, strides=None, sizes=None, ratios=None, scales=None):
+    def __init__(self, ratios, scales, pyramid_levels=None, strides=None, sizes=None):
         super(Anchors, self).__init__()
 
         if pyramid_levels is None:
@@ -13,12 +13,10 @@ class Anchors(nn.Module):
             self.strides = [2 ** x for x in self.pyramid_levels]
         if sizes is None:
             self.sizes = [2 ** (x + 2) for x in self.pyramid_levels]
-        if ratios is None:
-            self.ratios = np.array([0.5, 1, 2])
-        if scales is None:
-            self.scales = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)])
-        else:
-            self.scales = scales
+        
+        self.ratios = np.array([0.5, 1, 2]) if not ratios else ratios 
+        
+        self.scales = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)]) if not scales else scales 
 
     def forward(self, image):
         
