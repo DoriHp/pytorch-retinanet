@@ -59,7 +59,7 @@ def main(args=None):
 
 	parser = parser.parse_args(args)
 
-	train_transforms = [Normalizer()]
+	train_transforms = [Normalizer(), Resizer(), Augmenter()]
 
 	# Define transform methods
 	if parser.expr_augs:
@@ -70,10 +70,6 @@ def main(args=None):
 				train_transforms.append(aug_map[aug])
 			else:
 				print(f"{aug} is not available.")
-	else:
-		train_transforms.append(Augmenter())
-
-	train_transforms.append(Resizer())
 
 	# Create the data loaders
 	if parser.dataset == 'coco':
