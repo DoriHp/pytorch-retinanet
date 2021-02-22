@@ -2,7 +2,7 @@
 # @Author: devBao
 # @Date:   2021-02-18 14:42:23
 # @Last Modified by:   devBao
-# @Last Modified time: 2021-02-19 20:36:09
+# @Last Modified time: 2021-02-22 10:07:06
 
 import os
 import torch
@@ -15,22 +15,30 @@ def get_lr(optimizer):
 	for param_group in optimizer.param_groups:
 		return param_group['lr']
 
-def load_ckpt(checkpoint_fpath, model, optimizer):
+def load_ckpt(checkpoint_fpath, model, optimizer=None):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	checkpoint = torch.load(checkpoint_fpath)
 
 	# Load state_dict that save with nn.DataParallel
 	new_state_dict = OrderedDict()
-	for k, v in checkpoint['state_dict'].items():
-		name = k[7:]
-		new_state_dict[name] = v
+
+	if optimizer:
+		for k, v in checkpoint['state_dict'].items():
+			name = k[7:]
+			new_state_dict[name] = v
+	else:
+		for k, v in checkpoint.items():
+			name = k[7:]
+			new_state_dict[name] = v		
 
 	model.load_state_dict(new_state_dict)	
 	model.to(device)
 
-	optimizer.load_state_dict(checkpoint['optimizer'])
-
-	return model, optimizer, checkpoint['epoch']
+	if optimizer:
+		optimizer.load_state_dict(checkpoint['optimizer'])
+		return model, optimizer, checkpoint['epoch']
+	else:
+		return model, None, None
 
 def save_ckpt(state, is_best, checkpoint_dir, name):
 	f_path = os.path.join(checkpoint_dir, name)

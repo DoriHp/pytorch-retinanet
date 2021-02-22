@@ -14,6 +14,9 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, models, transforms
 
+from retinanet import model
+from utils import *
+
 from retinanet.dataloader import CocoDataset, CSVDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, \
 	UnNormalizer, Normalizer
 
@@ -38,23 +41,25 @@ def main(args=None):
 	if parser.dataset == 'coco':
 		dataset_val = CocoDataset(parser.coco_path, set_name='train2017', transform=transforms.Compose([Normalizer(), Resizer()]))
 	elif parser.dataset == 'csv':
-		dataset_val = CSVDataset(train_file=parser.csv_train, class_list=parser.csv_classes, transform=transforms.Compose([Normalizer(), Resizer()]))
+		dataset_val = CSVDataset(train_file=parser.csv_val, class_list=parser.csv_classes, transform=transforms.Compose([Normalizer(), Resizer()]))
 	else:
 		raise ValueError('Dataset type not understood (must be csv or coco), exiting.')
 
 	sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=1, drop_last=False)
 	dataloader_val = DataLoader(dataset_val, num_workers=1, collate_fn=collater, batch_sampler=sampler_val)
 
-	retinanet = torch.load(parser.model)
+	config = dict({"scales": None, "ratios": None})
+	config = load_config("config2.yaml", config)
+	retinanet = model.resnet50(num_classes=dataset_val.num_classes(), pretrained=False, ratios=config["ratios"], scales=config["scales"])
+
+	retinanet, _, _ = load_ckpt(parser.model, retinanet)
 
 	use_gpu = True
 
 	if use_gpu:
+		print("Using GPU for validation process")
 		if torch.cuda.is_available():
-			retinanet = retinanet.cuda()
-
-	if torch.cuda.is_available():
-		retinanet = torch.nn.DataParallel(retinanet).cuda()
+			retinanet = torch.nn.DataParallel(retinanet.cuda())
 	else:
 		retinanet = torch.nn.DataParallel(retinanet)
 

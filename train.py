@@ -263,7 +263,7 @@ def main(args=None):
 		# Save model file, optimizer and epoch number
 
 		checkpoint = {
-		    'epoch': epoch_num + 1,
+		    'epoch': epoch_num,
 		    'state_dict': retinanet.state_dict(),
 		    'optimizer': optimizer.state_dict()
 		}
