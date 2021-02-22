@@ -41,7 +41,8 @@ def main(args=None):
 
 	parser.add_argument('--depth', help='Resnet depth, must be one of 18, 34, 50, 101, 152', type=int, default=50)
 	parser.add_argument('--config', help='Config file path that contains scale and ratio values', type=str)
-	parser.add_argument('--epochs', help='Number of epochs', type=int, default=100)
+	parser.add_argument('--epochs', help='Number of epochs', type=int, default=50)
+	parser.add_argument('--init-lr', help='Initial learning rate for training process', type=float, default=1e-3)
 	parser.add_argument('--batch-size', help='Number of input images per step', type=int, default=1)
 	parser.add_argument('--num-workers', help='Number of worker used in dataloader', type=int, default=1)
 
@@ -129,7 +130,7 @@ def main(args=None):
 	else:
 		raise ValueError('Unsupported model depth, must be one of 18, 34, 50, 101, 152')
 
-	optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
+	optimizer = optim.Adam(retinanet.parameters(), lr=parser.init_lr)
 
 	if parser.resume:
 		if not parser.saved_ckpt:
@@ -252,7 +253,8 @@ def main(args=None):
 			writer.add_scalar("validate/mAP", mAP, epoch_num)
 			
 			# Handle lr_scheduler wuth mAP value
-			scheduler.step(mAP)			
+			scheduler.step(mAP)
+
 
 		lr = get_lr(optimizer)
 		writer.add_scalar("train/classification-loss", _epoch_csf_loss, epoch_num)
@@ -265,7 +267,7 @@ def main(args=None):
 		checkpoint = {
 		    'epoch': epoch_num,
 		    'state_dict': retinanet.state_dict(),
-		    'optimizer': optimizer.state_dict()
+		    'optimizer': optimizer.state_dict(),
 		}
 
 		# torch.save(retinanet.module, os.path.join(parser.snapshots, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num)))
